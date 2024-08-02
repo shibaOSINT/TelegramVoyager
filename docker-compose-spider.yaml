@@ -1,0 +1,65 @@
+version: '3'
+services:
+  dispatcher:
+    build:
+      context: ./spider/spider-dispatcher
+    image: dispatcher:0.1
+    environment:
+      DATE_FORMAT: $DATE_FORMAT
+      LOG_FORMATING: $LOG_FORMATING
+      LOG_LEVEL: $LOG_LEVEL
+      USERNAME_STORAGE_FOLDER: $USERNAME_STORAGE_FOLDER
+      HOST_CHANNEL: $HOST_CHANNEL
+      PORT_CHANNEL: $PORT_CHANNEL
+      WAIT_FLAG: $WAIT_FLAG
+      RELIEF_TIME: $RELIEF_TIME
+      DEBUG_MODE_ACTIVE: $DEBUG_MODE_ACTIVE
+    networks:
+      - spidernet
+    volumes:
+      - userstorage:$USERNAME_STORAGE_FOLDER
+  crawler:
+    build:
+      context: ./spider/spider-crawler
+    image: crawler:0.1
+    environment:
+      DATE_FORMAT: $DATE_FORMAT
+      LOG_FORMATING: $LOG_FORMATING
+      LOG_LEVEL: $LOG_LEVEL
+      USERNAME_STORAGE_FOLDER: $USERNAME_STORAGE_FOLDER
+      DATA_STORAGE_FOLDER: $DATA_STORAGE_FOLDER
+      API_ID: $API_ID
+      API_HASH: $API_HASH
+      MAX_MSG_CRAWL: $MAX_MSG_CRAWL
+      CHUNK_SIZE: $CHUNK_SIZE
+      DEBUG_MODE_ACTIVE: $DEBUG_MODE_ACTIVE
+      ERROR_GETTING_NAME_FLAG: $ERROR_GETTING_NAME_FLAG
+    networks:
+      - spidernet
+    volumes:
+      - userstorage:$USERNAME_STORAGE_FOLDER
+      - datastorage:$DATA_STORAGE_FOLDER
+  reporter:
+    build:
+      context: .
+      dockerfile: ./spider/spider-reporter/Dockerfile
+    image: reporter:0.1
+    #restart: on-failure # error in communication will cause program to exit with error
+    environment:
+      DATE_FORMAT: $DATE_FORMAT
+      LOG_FORMATING: $LOG_FORMATING
+      LOG_LEVEL: $LOG_LEVEL
+      HOST_CHANNEL: $HOST_CHANNEL
+      PORT_CHANNEL: $PORT_CHANNEL
+      DATA_STORAGE_FOLDER: $DATA_STORAGE_FOLDER
+      DEBUG_MODE_ACTIVE: $DEBUG_MODE_ACTIVE
+    networks:
+      - spidernet
+    volumes:
+      - datastorage:$DATA_STORAGE_FOLDER
+networks:
+  spidernet:
+    driver: bridge
+volumes:
+  userstorage:
+  datastorage:

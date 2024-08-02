@@ -1,0 +1,9 @@
+*.logs
+spider/devland/
+spider/spider-tooling
+./.idea
+.env-spider
+.env-orchestrator
+*.session
+*.xml
+venv/
