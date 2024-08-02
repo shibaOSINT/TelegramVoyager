@@ -1,3 +1,7 @@
+This is still being developed, not everything is ready. However, if you wish to test this, please fill the blank passwords in ```.env-orchestrator``` and ```.env-spider```. 
+
+---
+
 To test a particular container, you'll most likely need env variable that are set in the .env file. To use it just run `docker run --env-file .env my_docker_image`
 
 You'll need to have a session file to make Telegram requests. Generate it beforehand by running crawler.py locally (after replacing the API_ID and API_HASH values by yours.)
