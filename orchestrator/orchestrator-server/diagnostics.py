@@ -136,7 +136,7 @@ if __name__ == '__main__':
                                                         'crawled). Ordered by priority.')
     parser.add_argument('-p', '--post', type=int, help='Show N posts.')
     parser.add_argument('-xp', '--cross-posted', type=int, help='Show N cross posted channels')
-    parser.add_argument('-i', '--inject', nargs=2, type=str, help='Inject a channel in the queue.')
+    parser.add_argument('-i', '--inject', nargs=2, type=str, help='Inject a channel in the queue. Expects "username" "id".')
     parser.add_argument('--nuke', action='store_true', help='WARNING: Remove all indices for that specific'
                                                             ' config. They will be recreated by running the '
                                                             'orchestrator.')

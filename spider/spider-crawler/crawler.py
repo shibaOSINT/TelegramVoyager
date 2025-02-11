@@ -49,11 +49,23 @@ class Spider:
             dict1[k] += v
         return dict1
 
+    @staticmethod
+    def __get_client():
+        return Client(api_id=API_ID, api_hash=API_HASH, max_msg_crawl=MAX_MSG_CRAWL,
+                      chunk_size=CHUNK_SIZE)
+
+    def test_connection_to_telegram(self):
+        """
+        Verify if we can interact with telegram
+        :return: bool
+        """
+        client = self.__get_client()
+        return client.check_connected()
+
     def crawl_channel(self, chan_id):
         log.info(f"Getting info on channel: {chan_id}")
         fwd_chan_dict = defaultdict(int)
-        client = Client(session_name="Voyager", api_id=API_ID, api_hash=API_HASH, max_msg_crawl=MAX_MSG_CRAWL,
-                        chunk_size=CHUNK_SIZE)
+        client = self.__get_client()
         chan_id, title, username, verified, nb_participants = client.get_channel_info(chan_id)
         log.info(f"Crawling channel (chan_id, title, username, verified, nb_participants)"
                  f"{[chan_id, title, username, verified, nb_participants]}")
@@ -183,8 +195,12 @@ class Spider:
 
 if __name__ == '__main__':
     log.info("=================================== Crawler started! ===================================")
+    spd = Spider()
+    if spd.test_connection_to_telegram() is not True:
+        raise Exception("Could not connect to Telegram! Make sure you generated your session file. See the README (3rd section of the quickstart).")
+    else:
+        log.info("Connected successfully!")
     while True:
-        spd = Spider()
         for fname in os.listdir(USERNAME_STORAGE_FOLDER):
             log.info(f"Found file {fname}")
             fpath = os.path.join(USERNAME_STORAGE_FOLDER, fname)

@@ -1,8 +1,8 @@
 import json
-import pickle
+import sys
 import logging
 
-from telethon.utils import get_display_name
+from telethon.utils import get_display_name, resolve_id
 from telethon.tl.types import PeerChannel, PeerChat, Message
 from telethon.sync import TelegramClient
 from telethon.hints import Entity
@@ -18,10 +18,16 @@ ChannelInfo = namedtuple('ChannelInfo', ["id", "title", "username", "verified", 
 # https://www.google.com/search?q=get+bot+token+telegram&oq=get+bot+token+telegram&aqs=chrome..69i57.11334j0j1&sourceid=chrome&ie=UTF-8
 
 class Client:
-    def __init__(self, session_name, api_id, api_hash, max_msg_crawl, chunk_size):
-        self.client = TelegramClient(session_name, api_id=api_id, api_hash=api_hash)
+    def __init__(self, api_id, api_hash, max_msg_crawl, chunk_size):
+        self.client = TelegramClient("Voyager", api_id=api_id, api_hash=api_hash)
         self.MAX_MSG_CRAWL = max_msg_crawl
         self.CHUNK_SIZE = chunk_size
+
+    def check_connected(self):
+        """Returns True if we can connect to Telegram."""
+        # for some reason self.client.is_connected() always returns false
+        assert self._get_channel_entity("nytimes").title == "The New York Times"
+        return True
 
     def _get_channel_entity(self, name_or_id):
         try:
@@ -87,3 +93,23 @@ class Client:
                 buffer = []
         # the last chunk will probably not be the exact buffer size, we still need to yield it
         yield buffer
+
+
+if __name__ == '__main__':
+    help_line = ("Usage: telegram.py <API_ID> <API_HASH>\nMore info here: "
+                 "https://docs.telethon.dev/en/stable/basic/signing-in.html#signing-in")
+    if len(sys.argv) == 3:
+        try:
+            api_id = int(sys.argv[1])
+            api_hash = str(sys.argv[2])
+        except ValueError as e:
+            raise Exception(help_line)
+        else:
+            try:
+                cl = Client(api_id=api_id, api_hash=api_hash, max_msg_crawl=0, chunk_size=0)
+            except:
+                raise
+            else:
+                print("Connected successfully!")
+    else:
+        print(help_line)
