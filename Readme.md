@@ -44,13 +44,13 @@ More information on how to [get those here](https://core.telegram.org/api/obtain
 
 ## 3. Telegram
 
-You will need to interact with [telegram.py](.spider/spider-crawler/telegram.py) to create a session file that will allow Telegram Voyager to query Telegram. To do so:
+You will need to interact with [telegram.py](./spider/spider-crawler/telegram.py) to create a session file that will allow Telegram Voyager to query Telegram. To do so:
 1. Install Telethon on your machine (preferably in a venv)
 2. Go to the [spider-crawler](./spider/spider-crawler) folder.
 ```
 cd spider/spider-crawler
 ```
-2. Run [telegram.py](.spider/spider-crawler/telegram.py) using the API ID and API hash as argument
+2. Run [telegram.py](./spider/spider-crawler/telegram.py) using the API ID and API hash as argument
 ```
 (.venv) mat@matbuntu:~$ python3 telegram.py <API ID> <API HASH>
 Please enter your phone (or bot token): <The phone number associated with this Telegram account>
