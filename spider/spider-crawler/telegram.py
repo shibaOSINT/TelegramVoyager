@@ -6,6 +6,7 @@ from telethon.utils import get_display_name, resolve_id
 from telethon.tl.types import PeerChannel, PeerChat, Message
 from telethon.sync import TelegramClient
 from telethon.hints import Entity
+from telethon.sync import utils
 
 log = logging.getLogger(__name__)
 
@@ -22,6 +23,9 @@ class Client:
         self.client = TelegramClient("Voyager", api_id=api_id, api_hash=api_hash)
         self.MAX_MSG_CRAWL = max_msg_crawl
         self.CHUNK_SIZE = chunk_size
+
+    def resolve_id(self, id_to_res):
+        return utils.resolve_id(id_to_res)
 
     def check_connected(self):
         """Returns True if we can connect to Telegram."""
@@ -53,6 +57,9 @@ class Client:
             return True
         else:
             return False
+
+    def cast_id_to_channel_id(self):
+        pass
 
     def get_users_from_channel(self, channel):
         with self.client:

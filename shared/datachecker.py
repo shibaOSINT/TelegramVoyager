@@ -25,7 +25,7 @@ def validate_list(list_to_validate, type_in_list):
 
 def validate_posts(posts: dict):
     """Raise an exception if any of the posts do not follow the format of TEMPLATE_POSTS"""
-    for chan_id, chan_posts in posts.items():
+    for chan_username, chan_posts in posts.items():
         for post_id, post_info in chan_posts.items():
             assert type(post_id) is int
             assert len(post_info) == len(TEMPLATE_POSTS)

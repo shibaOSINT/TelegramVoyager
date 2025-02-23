@@ -62,11 +62,11 @@ class Spider:
         client = self.__get_client()
         return client.check_connected()
 
-    def crawl_channel(self, chan_id):
-        log.info(f"Getting info on channel: {chan_id}")
+    def crawl_channel(self, chan_username:str):
+        log.info(f"Getting info on channel: {chan_username}")
         fwd_chan_dict = defaultdict(int)
         client = self.__get_client()
-        chan_id, title, username, verified, nb_participants = client.get_channel_info(chan_id)
+        chan_id, title, username, verified, nb_participants = client.get_channel_info(name_or_id=chan_username)
         log.info(f"Crawling channel (chan_id, title, username, verified, nb_participants)"
                  f"{[chan_id, title, username, verified, nb_participants]}")
         for count, chunk in enumerate(client.crawl_channel(chan_id)):
@@ -77,7 +77,7 @@ class Spider:
             log.info(f"Saving chunk #{count}")
             filename = f"{username}-chunk_{count}.pickle"
             filepath = os.path.join(DATA_STORAGE_FOLDER, filename)
-            self._save_processed_info({chan_id: processed_posts}, filepath)
+            self._save_processed_info({username: processed_posts}, filepath)
         log.info(f"Finished crawling channel: {chan_id}. Saving channel info.")
 
         # changing the fwd_chan_dict to a nicer format
@@ -131,7 +131,13 @@ class Spider:
                         fwd_chan_id = po.forward.chat_id
 
                         # sometimes username is none, we want to keep the same type of data in the dict though
-                        fwd_chan_username = fwd_chan_username if fwd_chan_username is not None else ""
+                        if fwd_chan_username is None:
+                            log.error("The following post has been forwarded but we can't find the username of the "
+                                      "chat. Skipping this chat.")
+                            for key, val in vars(po).items():
+                                log.error(f"{key}: {val}")
+                            # TODO investigate this issue, setting up logging isn't enough
+                            continue
 
                     except AttributeError as err:
                         log.warning(f"Error getting fwd chan name: {err}")
@@ -140,7 +146,7 @@ class Spider:
                         for key, val in vars(po).items():
                             log.warning(f"{key}: \t{val}")
                         fwd_chan_username = ERROR_GETTING_NAME_FLAG
-                    info["forwarded_from"] = str(fwd_chan_id)
+                    info["forwarded_from"] = str(fwd_chan_username)
                     if fwd_chan_username != ERROR_GETTING_NAME_FLAG:
                         forwarded_channels[(fwd_chan_username, fwd_chan_id)] += 1
 
@@ -208,15 +214,15 @@ if __name__ == '__main__':
             if fpath.endswith(".crawling"):
                 continue
             with open(fpath, 'r') as g:
-                channel_id = int(g.read())
-            log.info(f"Channel ID from {fname} => {channel_id}. Crawling it.")
+                channel_username = g.read()
+            log.info(f"Channel username from {fname} => {channel_username}. Crawling it.")
             # we rename the file containing the username we are currently crawling
             new_fpath = fpath + ".crawling"
             os.rename(src=fpath, dst=new_fpath)
             try:
-                spd.crawl_channel(chan_id=channel_id)
+                spd.crawl_channel(chan_username=channel_username)
             except Exception as err:
-                log.error(f"Error while crawling {channel_id}")
+                log.error(f"Error while crawling {channel_username}")
                 raise err
             else:
                 os.remove(new_fpath)

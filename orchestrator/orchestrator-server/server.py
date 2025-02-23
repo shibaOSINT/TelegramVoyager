@@ -100,8 +100,8 @@ def save_data():
     log.info(f"Saving posts from {request.remote_addr}")
     data = request.json
     db = app.get_elastic_db()
-    for channel_id, posts in data.items():
-        db.save_data(channel_id=int(channel_id), posts=posts)
+    for channel_username, posts in data.items():
+        db.save_data(channel_username=channel_username, posts=posts)
     return jsonify(success=True)
 
 

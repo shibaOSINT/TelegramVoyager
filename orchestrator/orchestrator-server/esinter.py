@@ -65,7 +65,7 @@ MAPPING_POSTS = {
         "urls": {"type": "keyword"},
         "domains": {"type": "keyword"},
         "date": {"type": "date"},
-        "channel": {"type": "long"}
+        "channel": {"type": "keyword"}
     }
 }
 
@@ -167,8 +167,11 @@ class BaseElasticInteractor:
                                        "username": "channel_username_example",
                                        "verified": True,
                                        "nb_participants": 2626}
-        :param fwd_chan_list (dict): ex: {"(xposted_channel_username_1, xposted_channel_id_1)": 11,
-                                          "(xposted_channel_username_2, xposted_channel_id_2)": 2}
+        :param fwd_chan_list (list): ex: [
+                                            {"chan_username": str,
+                                             "chan_id": str,
+                                             "nb_of_forwards": int}
+                                         ]
         :return:
         """
         channel_info["chan_id"] = int(channel_info["chan_id"])
@@ -181,8 +184,8 @@ class BaseElasticInteractor:
 
         # This method is called when a channel is finished crawling. We can mark it as crawled
         log.debug(f"Marking {channel_username} as {ChannelStatus.crawled}.")
-        # self._change_channel_crawling_status_to_crawled(channel_username)
-        self._change_channel_crawling_status_to_crawled(channel_id)
+        self._change_channel_crawling_status_to_crawled(channel_username)
+        # self._change_channel_crawling_status_to_crawled(channel_id)
 
         return resp_channel_index, responses_queue
 
@@ -191,6 +194,7 @@ class BaseElasticInteractor:
 
         document = channel_info.copy()
         document['x_posted_channels'] = list()
+        chan_username = document['username']
 
         for fwd_chan in fwd_chan_list:
             document['x_posted_channels'].append({"username": fwd_chan["chan_username"],
@@ -199,9 +203,10 @@ class BaseElasticInteractor:
         # TODO what if channel already exists?
 
         resp_post_channel = self.client.index(index=self.channel_index,
-                                              id=channel_id,
+                                              id=chan_username,
                                               document=document)
-        log.debug(f"Response for adding {channel_id} to {self.channel_index}: {resp_post_channel['result']}")
+        log.debug(f"Response for adding {channel_id} ({chan_username}) to {self.channel_index}: "
+                  f"{resp_post_channel['result']}")
         return resp_post_channel
 
     def _add_channels_to_queue(self, fwd_chan_list: list, force=False):
@@ -222,13 +227,13 @@ class BaseElasticInteractor:
             xpost_chan_id = fwd_chan_info["chan_id"]
             priority = fwd_chan_info["nb_of_forwards"]
             # TODO DO WE REALLY NEED THAT ?????????????????
-            chan_info = self.get_channel_by_id(chan_id=xpost_chan_id)
+            chan_info = self.get_channel_by_username(username=xpost_chan_username)
             if chan_info:
                 log.info(f"Not adding {xpost_chan_username} to the queue, already crawled.")
                 log.debug(chan_info)
                 continue
             resp_crawl = self.client.index(index=self.queue_index,
-                                           id=xpost_chan_id,
+                                           id=xpost_chan_username,
                                            document={"priority": priority,
                                                      "status": ChannelStatus.to_crawl,
                                                      "time_added": int(datetime.datetime.now().timestamp()),
@@ -240,17 +245,17 @@ class BaseElasticInteractor:
 
         return crawl_queue_reps
 
-    def save_data(self, channel_id, posts):
+    def save_data(self, channel_username: str, posts):
         """Adding posts to the POST_INDEX"""
         try:
-            self._save_posts_bulk(channel_username=channel_id, posts=posts)
+            self._save_posts_bulk(channel_username=channel_username, posts=posts)
         except helpers.BulkIndexError as err:
             log.error("Couldn't save posts:")
             for i in err.errors:
                 log.error(i)
             raise err
 
-    def _save_posts_bulk(self, channel_username, posts: dict):
+    def _save_posts_bulk(self, channel_username: str, posts: dict):
         """
         Save posts using the bulk API.
 
@@ -275,7 +280,7 @@ class BaseElasticInteractor:
         log.info("Indexed %d/%d posts" % (successes, len(posts)))
 
     @staticmethod
-    def __generate_action_bulk_index(channel_username, posts: dict):
+    def __generate_action_bulk_index(channel_username: str, posts: dict):
         action = {}
         for id_post, post_info in posts.items():
             action["_id"] = f"{channel_username}:{id_post}"
@@ -285,14 +290,14 @@ class BaseElasticInteractor:
             yield action
 
 
-    def get_next_channel_to_be_crawled(self):
+    def get_next_channel_to_be_crawled(self) -> str:
         """
                 Get all channels in queue:
                     1. Any channel with status `to_crawl`? If so => return one with highest prio (normal way of operating)
                     2. Any channel with status `crawled`? If so => return the one with the oldest `time_crawling_started`
                         property
                     3. Only channels with status `being_crawled`? If so => return wait flag.
-                :return:
+                :return: channel username for next channel in queue (str)
                 """
 
         # we sort channels between the ones that have been crawled and the ones that are to be crawled
@@ -303,11 +308,12 @@ class BaseElasticInteractor:
         # print(resp)
         for doc in resp['hits']['hits']:
             document = doc['_source']
+            chan_username = document['username']
             chan_id = document['chan_id']
             if document['status'] == ChannelStatus.to_crawl:
-                channels_to_crawl.append((chan_id, document))
+                channels_to_crawl.append(((chan_username, chan_id), document))
             elif document['status'] == ChannelStatus.crawled:
-                channels_crawled.append((chan_id, document))
+                channels_crawled.append(((chan_username, chan_id), document))
 
         log.info(f"Total channel {ChannelStatus.to_crawl}: {len(channels_to_crawl)}")
         log.info(f"Total channel {ChannelStatus.crawled}: {len(channels_crawled)}")
@@ -322,17 +328,17 @@ class BaseElasticInteractor:
         else:
             raise EmptyQueueException
 
-        chan_id = resp[0]
+        chan_username, chan_id = resp[0]
 
         while True:
-            resp = self._change_channel_crawling_status_to_being_crawled(chan_id=chan_id)
+            resp = self._change_channel_crawling_status_to_being_crawled(chan_username=chan_username)
             if resp['result'] == "updated":
-                log.debug(f"Successfully changed status of chan {chan_id}")
-                return chan_id
+                log.info(f"Successfully changed status of chan {chan_username}")
+                return chan_username
             else:
-                log.warning(f"Couldn't change the status of chan {chan_id}. Trying again.")
+                log.warning(f"Couldn't change the status of chan {chan_username}. Trying again.")
 
-    def _change_channel_crawling_status_to_being_crawled(self, chan_id):
+    def _change_channel_crawling_status_to_being_crawled(self, chan_username: str):
         """
         Not to be used outside of get_next_channel_to_be_crawled. This doesn't change the status of the channel
         retrieved!
@@ -340,24 +346,24 @@ class BaseElasticInteractor:
         :return:
         """
         resp = self.client.update(index=self.queue_index,
-                                  id=chan_id,
+                                  id=chan_username,
                                   doc={"status": ChannelStatus.being_crawled,
                                        "time_crawling_started": int(datetime.datetime.now().timestamp())})
 
-        log.info(f"{chan_id} status changed to being crawled: {resp['result']}")
+        log.debug(f"{chan_username} status changed to being crawled: {resp['result']}")
         return resp.raw
 
-    def _change_channel_crawling_status_to_crawled(self, chan_id: int):
+    def _change_channel_crawling_status_to_crawled(self, chan_username: str):
         """
                 Not to be used outside of save_data_xposted.
                 :param chan_id: Username of the channel that must be updated
                 :return:
                 """
         resp = self.client.update(index=self.queue_index,
-                                  id=chan_id,
+                                  id=chan_username,
                                   doc={"status": ChannelStatus.crawled})
 
-        log.info(f"{chan_id} status changed to {ChannelStatus.crawled}: {resp['result']}")
+        log.info(f"{chan_username} status changed to {ChannelStatus.crawled}: {resp['result']}")
         return resp.raw
 
     def _get_channel_to_be_crawled_with_highest_prio(self):

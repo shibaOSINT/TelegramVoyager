@@ -36,7 +36,7 @@ def get_next_chan(host, port, wait_flag, relief_time) -> str:
                 error_count = 0
                 data = resp.json()
                 username = str(data)
-                log.info(f"Got channel ID = {username}")
+                log.info(f"Got channel username = {username}")
                 return username
         except requests.exceptions.HTTPError as e:
             log.error(f"Error getting next channel: {e}. Status: {resp.status_code}")

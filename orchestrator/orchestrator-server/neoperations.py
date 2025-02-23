@@ -83,7 +83,8 @@ class GraphDB:
         """
         usernames = [k["chan_username"] for k in fwd_chan_list]
         chan_id_par = chan_info['chan_id']
-        for usern in usernames:
+        chan_username_par = chan_info['username']
+        for fwd_chan_info in fwd_chan_list:
             # Need the "*" on the second WITH, else, the parent variable isn't carried over.
             qv3 = """
             MATCH (parent:Channel {chan_id: $chan_id_par})
@@ -97,10 +98,25 @@ class GraphDB:
               SET rel.value= rel.value + $val_rel
             """
 
+            username_fwd = fwd_chan_info["chan_username"]
+            val_rel = fwd_chan_info["nb_of_forwards"]
+
+            qv3 = """
+                       MATCH (parent:Channel {username: $chan_username_par})
+                       WITH parent 
+                       MERGE (fwdchan:Channel {username: $username_fwd})
+                       WITH *
+                       MERGE (parent)-[rel:FORWARDS]->(fwdchan)
+                       ON CREATE
+                         SET rel.value = $val_rel
+                       ON MATCH
+                         SET rel.value= rel.value + $val_rel
+                       """
+
             resp = self.driver.execute_query(query_=qv3,
-                                             chan_id_par=chan_id_par,
-                                             username_fwd=usern,
-                                             val_rel=fwd_chan_list[usern])
+                                             chan_username_par=chan_username_par,
+                                             username_fwd=username_fwd,
+                                             val_rel=val_rel)
 
         # return resp.summary.summary_notifications
 
